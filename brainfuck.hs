@@ -12,7 +12,6 @@ type DataTape = [Cell]
 type Pointer = Int
 
 
-
 -- Data ops
 
 data BFop = 
@@ -68,41 +67,11 @@ interpreterBF dt (op:ops) pointer = case op of
     MoveLeft  -> interpreterBF dt (ops) (pointer-1)
     Increment -> interpreterBF (modCell dt Increment 0 pointer) (ops) pointer
     Decrement -> interpreterBF (modCell dt Decrement 0 pointer) (ops) pointer
+    Loop xs -> interpreterBF (looping dt xs pointer) (ops) pointer 
+    where looping :: DataTape -> [BFop] -> Pointer -> DataTape
+          looping datatape operations p = if value (datatape !! p) > 0 then looping (interpreterBF datatape operations 0) operations p else datatape
 
 
 
 
 
-
-
-
-
--- Crear un tipo de dato representando los bytes del array (8bits)
-
-{--
-
--- Crear tipo con las intrucciones de brainfuck
-import Data.Char
-array :: [Int]
-array = take 32 $ repeat 0
-
---instruction = ""
-
-modCell :: [Int] -> (Int -> Int) -> Int -> [Int]
-modCell info op pointer  = 
- let large = length info 
- in [ if i == pointer then op (info !! i) else info !! i | i <- [0,1..(large -1)]]
-
-
-bf :: String -> [Int] -> Int -> [Int]
-bf [] info pointer = info
-bf (x:xs) info pointer
- | x == '+' = bf xs (modCell info succ pointer) pointer
- | x == '-' = bf xs (modCell info pred pointer) pointer
- | x == '>' = bf xs info (pointer+1)
- | x == '<' = bf xs info (pointer-1)   
-
-
-decode xs = map (chr) xs
-
---}
