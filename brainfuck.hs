@@ -1,14 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 -- Brainfuck compiler
+import Data.Char
 
+-- Tape / Pointer
 
--- Tape
-data Cell = Cell {value :: Int} deriving (Show,Ord,Eq)
-
-instance  Bounded Cell where
- minBound = Cell 0
- maxBound = Cell 256
-
-type DataTape = [Cell]
+type DataTape = [Int]
 type Pointer = Int
 
 
@@ -37,41 +33,31 @@ parser (x:xs)
  | x == '-' = Decrement : parser xs
  | x == '.' = Output : parser xs
  | x == ',' = Input : parser xs
- | x == '[' = Loop (parser $ fst (parseLoop xs)) : (parser $ tail $ snd $ parseLoop xs)
- where parseLoop xs = let loop = break (== ']') xs 
-                      in if (snd loop) == "" then error "Syntax error ']' missing" else loop
+ | x == '[' = looping xs 
+ | x == ']' = parser xs
+ where looping ys = let loop = break (==']') ys in (Loop (parser $ fst loop)): parser (snd loop)    
+
 
 
 --Interpreter
 
--- From a datatape apply some BFoperator (wether Increment or Decrement) at target pointer
--- If the current pointer is equal of target pointer, then apply operator at current cell.
--- Otherwise, add 1 to the current pointer.
-modCell :: DataTape -> BFop -> Pointer -> Pointer -> DataTape
-modCell [] _ _ _ = []
-modCell (d:dt) op startP targetP
- | startP == targetP = operate op d : dt 
- | otherwise = d : (modCell dt op (startP+1) targetP)  
- where operate :: BFop -> Cell -> Cell
-       operate op c = if op == Increment then Cell (value c + 1) else Cell (value c -1)
+-- Increment cell at pointer
+incCell datatape pointer = let len = (length datatape) - 1 
+ in [ if pointer == n then succ (datatape !! n) else (datatape !! n) | n <- [0..len] ] 
 
+-- Decrement cell at pointer
+decCell datatape pointer = let len = (length datatape) - 1 
+ in [ if pointer == n then pred (datatape !! n) else (datatape !! n) | n <- [0..len] ]
 
--- let tape1 = take 32 $ repeat Cell 0
--- map (value)  $ modCell tape1 Increment 0 5
-
-
-interpreterBF :: DataTape -> [BFop] -> Pointer -> DataTape
-interpreterBF dt [] _ = dt
-interpreterBF dt (op:ops) pointer = case op of
-    MoveRight -> interpreterBF dt (ops) (pointer+1)
-    MoveLeft  -> interpreterBF dt (ops) (pointer-1)
-    Increment -> interpreterBF (modCell dt Increment 0 pointer) (ops) pointer
-    Decrement -> interpreterBF (modCell dt Decrement 0 pointer) (ops) pointer
-    Loop xs -> interpreterBF (looping dt xs pointer) (ops) pointer 
-    where looping :: DataTape -> [BFop] -> Pointer -> DataTape
-          looping datatape operations p = if value (datatape !! p) > 0 then looping (interpreterBF datatape operations 0) operations p else datatape
-
-
-
-
+evaluator :: DataTape -> [BFop] -> Pointer -> DataTape
+evaluator datatape [] _ = datatape
+evaluator datatape (op:ops) pointer = case op of
+    MoveRight -> evaluator datatape ops (succ pointer)
+    MoveLeft -> evaluator datatape ops (pred pointer)
+    Increment -> evaluator (incCell datatape pointer) ops pointer
+    Decrement -> evaluator (decCell datatape pointer) ops pointer
+    Loop ls -> evaluator (looping datatape ls pointer) ops pointer
+    where looping xs ops' p = if xs !! p > 0 
+                              then looping (evaluator xs ops' p) ops' p 
+                              else xs
 
