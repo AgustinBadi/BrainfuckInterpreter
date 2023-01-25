@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
--- Brainfuck compiler
+
+-- Brainfuck Interpreter 
 import Data.Char
+
 
 -- Tape / Pointer
 
@@ -42,10 +43,12 @@ parser (x:xs)
 --Interpreter
 
 -- Increment cell at pointer
+incCell :: DataTape -> Int -> DataTape
 incCell datatape pointer = let len = (length datatape) - 1 
  in [ if pointer == n then succ (datatape !! n) else (datatape !! n) | n <- [0..len] ] 
 
 -- Decrement cell at pointer
+decCell :: DataTape -> Int -> DataTape
 decCell datatape pointer = let len = (length datatape) - 1 
  in [ if pointer == n then pred (datatape !! n) else (datatape !! n) | n <- [0..len] ]
 
@@ -56,8 +59,16 @@ evaluator datatape (op:ops) pointer = case op of
     MoveLeft -> evaluator datatape ops (pred pointer)
     Increment -> evaluator (incCell datatape pointer) ops pointer
     Decrement -> evaluator (decCell datatape pointer) ops pointer
-    Loop ls -> evaluator (looping datatape ls pointer) ops pointer
-    where looping xs ops' p = if xs !! p > 0 
-                              then looping (evaluator xs ops' p) ops' p 
-                              else xs
+    Loop array -> evaluator (looping datatape array pointer) ops pointer
+    where looping dt ops' p = if dt !! p > 0 
+                              then looping (evaluator dt ops' p) ops' p 
+                              else dt
+
+main = do
+    instructions <- getLine
+    let parse = parser instructions
+        eval = evaluator [0,0,0,0,0,0,0,0] parse 0
+    print eval
+
+
 
