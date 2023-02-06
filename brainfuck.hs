@@ -1,7 +1,7 @@
 
 -- Brainfuck Interpreter 
 import Data.Char
-
+import Data.List
 
 -- Tape / Pointer
 
@@ -52,23 +52,40 @@ decCell :: DataTape -> Int -> DataTape
 decCell datatape pointer = let len = (length datatape) - 1 
  in [ if pointer == n then pred (datatape !! n) else (datatape !! n) | n <- [0..len] ]
 
-evaluator :: DataTape -> [BFop] -> Pointer -> DataTape
-evaluator datatape [] _ = datatape
-evaluator datatape (op:ops) pointer = case op of
-    MoveRight -> evaluator datatape ops (succ pointer)
-    MoveLeft -> evaluator datatape ops (pred pointer)
-    Increment -> evaluator (incCell datatape pointer) ops pointer
-    Decrement -> evaluator (decCell datatape pointer) ops pointer
-    Loop array -> evaluator (looping datatape array pointer) ops pointer
-    where looping dt ops' p = if dt !! p > 0 
-                              then looping (evaluator dt ops' p) ops' p 
-                              else dt
+-- Insert in the cell at
+insertCell datatape element pointer = 
+    let split = splitAt pointer datatape
+    in (fst split) ++ [element] ++ tail (snd split)
+
+eval :: DataTape -> [BFop] -> Pointer -> IO DataTape
+eval datatape [] _ = return datatape
+eval datatape (op:ops) pointer = case op of
+    Output -> do 
+        print $ chr $ (head . drop pointer) datatape
+        result <- eval datatape ops pointer  
+        return result 
+    MoveRight -> eval datatape ops (succ pointer)
+    MoveLeft -> eval datatape ops (pred pointer)
+    Increment -> eval (incCell datatape pointer) ops pointer
+    Decrement -> eval (decCell datatape pointer) ops pointer
+    Loop array -> do 
+        loop <- (looping datatape array pointer)
+        eval loop ops pointer
+    where looping :: DataTape -> [BFop] -> Pointer -> IO DataTape
+          looping dt ops' p = if dt !! p > 0 
+                              then do 
+                                evaluation <- eval dt ops' p
+                                looping evaluation ops' p 
+                              else 
+                                return dt
 
 main = do
     instructions <- getLine
     let parse = parser instructions
-        eval = evaluator [0,0,0,0,0,0,0,0] parse 0
-    print eval
+        bf = eval [0,0,0,0,0,0,0,0] parse 0
+    return bf
+
+
 
 
 
